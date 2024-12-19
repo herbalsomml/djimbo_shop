@@ -3,12 +3,14 @@ from aiogram import Router, Bot, F
 from aiogram.filters import StateFilter
 from aiogram.types import Message, CallbackQuery
 
-from tgbot.database.db_settings import Settingsx
+from tgbot.database import Settingsx, Positionx, Categoryx
 from tgbot.keyboards.inline_user import user_support_finl
+from tgbot.keyboards.inline_user_page import prod_item_position_swipe_fp
 from tgbot.keyboards.reply_main import menu_frep
 from tgbot.utils.const_functions import ded
 from tgbot.utils.misc.bot_filters import IsBuy, IsRefill, IsWork
 from tgbot.utils.misc.bot_models import FSM, ARS
+from tgbot.utils.text_functions import position_open_user
 
 # Игнор-колбэки покупок
 prohibit_buy = [
@@ -24,9 +26,9 @@ prohibit_buy = [
 prohibit_refill = [
     'user_refill',
     'user_refill_method',
-    'Pay:',
-    'Pay:QIWI',
+    'Pay:Cryptobot',
     'Pay:Yoomoney',
+    'Pay:',
 ]
 
 router = Router(name=__name__)
@@ -43,11 +45,11 @@ async def filter_work_message(message: Message, bot: Bot, state: FSM, arSession:
 
     if get_settings.misc_support != "None":
         return await message.answer(
-            "<b>⛔ Бот находится на технических работах.</b>",
+            "<b>⛔ Бот находится на технических работах</b>",
             reply_markup=user_support_finl(get_settings.misc_support),
         )
 
-    await message.answer("<b>⛔ Бот находится на технических работах.</b>")
+    await message.answer("<b>⛔ Бот находится на технических работах</b>")
 
 
 # Фильтр на технические работы - колбэк
@@ -66,7 +68,7 @@ async def filter_work_callback(call: CallbackQuery, bot: Bot, state: FSM, arSess
 async def filter_buy_message(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
-    await message.answer("<b>⛔ Покупки временно отключены.</b>")
+    await message.answer("<b>⛔ Покупки временно отключены</b>")
 
 
 # Фильтр на доступность покупок - колбэк
@@ -84,7 +86,7 @@ async def filter_buy_callback(call: CallbackQuery, bot: Bot, state: FSM, arSessi
 async def filter_refill_message(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
-    await message.answer("<b>⛔ Пополнение временно отключено.</b>")
+    await message.answer("<b>⛔ Пополнение временно отключено</b>")
 
 
 # Фильтр на доступность пополнения - колбэк
@@ -110,3 +112,27 @@ async def main_start(message: Message, bot: Bot, state: FSM, arSession: ARS):
         """),
         reply_markup=menu_frep(message.from_user.id),
     )
+
+
+# Открытие диплинков
+@router.message(F.text.startswith('/start '))
+async def main_start_deeplink(message: Message, bot: Bot, state: FSM, arSession: ARS):
+    deepling_args = message.text[7:]
+
+    if deepling_args.startswith("p_"):
+        position_id = deepling_args[2:]
+
+        get_position = Positionx.get(position_id=position_id)
+
+        if get_position is not None:
+            await position_open_user(bot, message.from_user.id, position_id, 0)
+    elif deepling_args.startswith("c_"):
+        category_id = deepling_args[2:]
+
+        get_category = Categoryx.get(category_id=category_id)
+
+        if get_category is not None:
+            await message.answer(
+                f"<b>🎁 Текущая категория: <code>{get_category.category_name}</code></b>",
+                reply_markup=prod_item_position_swipe_fp(0, category_id),
+            )

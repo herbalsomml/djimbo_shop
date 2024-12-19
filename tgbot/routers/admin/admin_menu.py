@@ -22,7 +22,7 @@ async def admin_payments(message: Message, bot: Bot, state: FSM, arSession: ARS)
     await state.clear()
 
     await message.answer(
-        "<b>🔑 Настройка платежных системы.</b>",
+        "<b>🔑 Настройка платежных системы</b>",
         reply_markup=payments_frep(),
     )
 
@@ -33,7 +33,7 @@ async def admin_settings(message: Message, bot: Bot, state: FSM, arSession: ARS)
     await state.clear()
 
     await message.answer(
-        "<b>⚙️ Основные настройки бота.</b>",
+        "<b>⚙️ Основные настройки бота</b>",
         reply_markup=settings_frep(),
     )
 
@@ -44,7 +44,7 @@ async def admin_functions(message: Message, bot: Bot, state: FSM, arSession: ARS
     await state.clear()
 
     await message.answer(
-        "<b>🔆 Выберите нужную функцию.</b>",
+        "<b>🔆 Общие функции бота</b>",
         reply_markup=functions_frep(),
     )
 
@@ -55,7 +55,7 @@ async def admin_products(message: Message, bot: Bot, state: FSM, arSession: ARS)
     await state.clear()
 
     await message.answer(
-        "<b>🎁 Редактирование товаров.</b>",
+        "<b>🎁 Редактирование товаров</b>",
         reply_markup=items_frep(),
     )
 

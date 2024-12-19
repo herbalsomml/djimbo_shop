@@ -31,9 +31,9 @@ def payments_frep() -> ReplyKeyboardMarkup:
     keyboard = ReplyKeyboardBuilder()
 
     keyboard.row(
-        rkb("🔮 ЮMoney"), rkb("🥝 QIWI"),
+        rkb("🔷 CryptoBot"), rkb("🔮 ЮMoney"),
     ).row(
-        rkb("🔙 Главное меню"), rkb("🖲 Способы пополнений"),
+        rkb("🔙 Главное меню"),
     )
 
     return keyboard.as_markup(resize_keyboard=True)

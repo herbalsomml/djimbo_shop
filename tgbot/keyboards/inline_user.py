@@ -4,7 +4,7 @@ from typing import Union
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from tgbot.database.db_payments import Paymentsx
+from tgbot.database import Paymentsx
 from tgbot.utils.const_functions import ikb
 
 
@@ -35,15 +35,15 @@ def user_support_finl(support_login: str) -> InlineKeyboardMarkup:
 
 ################################################################################
 ################################### ПЛАТЕЖИ ####################################
-# Выбор способов пополнения
-def refill_method_finl() -> Union[InlineKeyboardMarkup, None]:
+# Выбор способа пополнения
+def refill_method_finl() -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
 
     get_payments = Paymentsx.get()
 
-    if get_payments.way_qiwi == "True":
-        keyboard.row(ikb("🥝 QIWI", data="user_refill_method:QIWI"))
-    if get_payments.way_yoomoney == "True":
+    if get_payments.status_cryptobot == "True":
+        keyboard.row(ikb("🔷 CryptoBot", data="user_refill_method:Cryptobot"))
+    if get_payments.status_yoomoney == "True":
         keyboard.row(ikb("🔮 ЮMoney", data="user_refill_method:Yoomoney"))
 
     keyboard.row(ikb("🔙 Вернуться", data="user_profile"))
@@ -60,5 +60,21 @@ def refill_bill_finl(pay_link: str, pay_receipt: Union[str, int], pay_method: st
     ).row(
         ikb("🔄 Проверить оплату", data=f"Pay:{pay_method}:{pay_receipt}"),
     )
+
+    return keyboard.as_markup()
+
+
+# Выбор способа пополнения при нехватке баланс во время покупки товара
+def refill_method_buy_finl() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardBuilder()
+
+    get_payments = Paymentsx.get()
+
+    if get_payments.status_cryptobot == "True":
+        keyboard.row(ikb("🔷 CryptoBot", data="user_refill_method:Cryptobot"))
+    if get_payments.status_yoomoney == "True":
+        keyboard.row(ikb("🔮 ЮMoney", data="user_refill_method:Yoomoney"))
+
+    keyboard.row(ikb("❌ Закрыть", data="close_this"))
 
     return keyboard.as_markup()

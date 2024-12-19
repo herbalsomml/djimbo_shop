@@ -1,12 +1,14 @@
-aiogram==3.5.0
+aiogram==3.15.0
 APScheduler==3.10.4
 colorlog==6.8.2
 beautifulsoup4==4.12.3
-aiohttp==3.9.3
+aiohttp==3.10.11
 typing==3.7.4.3
 colorama==0.4.6
 bs4==0.0.1
 pytz==2024.1
 aiofiles==23.2.1
-pydantic==2.5.2
 cachetools==5.3.3
+ujson==5.10.0
+DateTime==5.5
+pydantic==2.6.4

@@ -6,8 +6,7 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
 
 from tgbot.data.config import BOT_VERSION, get_desc
-from tgbot.database.db_purchases import Purchasesx
-from tgbot.database.db_settings import Settingsx
+from tgbot.database import Purchasesx, Settingsx
 from tgbot.keyboards.inline_user import user_support_finl
 from tgbot.keyboards.inline_user_page import *
 from tgbot.utils.const_functions import ded, del_message, convert_date
@@ -23,7 +22,7 @@ router = Router(name=__name__)
 async def user_shop(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
-    get_categories = Categoryx.get_all()
+    get_categories = get_categories_items()
 
     if len(get_categories) >= 1:
         await message.answer(
@@ -31,7 +30,7 @@ async def user_shop(message: Message, bot: Bot, state: FSM, arSession: ARS):
             reply_markup=prod_item_category_swipe_fp(0),
         )
     else:
-        await message.answer("<b>🎁 Увы, товары в данное время отсутствуют.</b>")
+        await message.answer("<b>🎁 Увы, товары в данное время отсутствуют</b>")
 
 
 # Открытие профиля
@@ -55,7 +54,7 @@ async def user_available(message: Message, bot: Bot, state: FSM, arSession: ARS)
             reply_markup=prod_available_swipe_fp(0, len(items_available)),
         )
     else:
-        await message.answer("<b>🎁 Увы, товары в данное время отсутствуют.</b>")
+        await message.answer("<b>🎁 Увы, товары в данное время отсутствуют</b>")
 
 
 # Открытие FAQ
@@ -64,17 +63,19 @@ async def user_faq(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
     get_settings = Settingsx.get()
-    send_message = get_settings.misc_faq
 
-    if send_message == "None":
-        send_message = ded(f"""
-            ❔ Информация. Измените её в настройках бота.
-            ➖➖➖➖➖➖➖➖➖➖
-            {get_desc()}
-        """)
+    if get_settings.misc_faq == "None":
+        return await message.answer(
+            ded(f"""
+                ❔ Текст FAQ не указан. Измените его в настройках бота.
+                ➖➖➖➖➖➖➖➖➖➖
+                {get_desc()}
+            """),
+            disable_web_page_preview=True,
+        )
 
     await message.answer(
-        insert_tags(message.from_user.id, send_message),
+        insert_tags(message.from_user.id, get_settings.misc_faq),
         disable_web_page_preview=True,
     )
 
@@ -89,7 +90,7 @@ async def user_support(message: Message, bot: Bot, state: FSM, arSession: ARS):
     if get_settings.misc_support == "None":
         return await message.answer(
             ded(f"""
-                ☎️ Поддержка. Измените её в настройках бота.
+                ☎️ Контакты поддержки не указаны. Измените их в настройках бота.
                 ➖➖➖➖➖➖➖➖➖➖
                 {get_desc()}
             """),
@@ -97,7 +98,7 @@ async def user_support(message: Message, bot: Bot, state: FSM, arSession: ARS):
         )
 
     await message.answer(
-        "<b>☎️ Нажмите кнопку ниже для связи с Администратором.</b>",
+        "<b>☎️ Нажмите кнопку ниже для связи с Администратором</b>",
         reply_markup=user_support_finl(get_settings.misc_support),
     )
 

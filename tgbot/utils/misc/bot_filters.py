@@ -6,7 +6,7 @@ from aiogram.filters import BaseFilter
 from aiogram.types import Message, CallbackQuery
 
 from tgbot.data.config import get_admins
-from tgbot.database.db_settings import Settingsx
+from tgbot.database import Settingsx
 
 
 # Проверка на админа

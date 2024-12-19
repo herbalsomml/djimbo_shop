@@ -5,13 +5,11 @@ from aiogram import Router, Bot, F
 from aiogram.filters import StateFilter
 from aiogram.types import CallbackQuery, Message
 
-from tgbot.database.db_purchases import Purchasesx
-from tgbot.database.db_refill import Refillx
-from tgbot.database.db_users import Userx
-from tgbot.keyboards.inline_admin import profile_search_return_finl, mail_confirm_finl
-from tgbot.utils.const_functions import is_number, to_number, del_message, ded, get_unix, clear_html, convert_date
+from tgbot.database import Purchasesx, Refillx, Userx
+from tgbot.keyboards.inline_admin import profile_edit_return_finl, mail_confirm_finl
+from tgbot.utils.const_functions import is_number, to_number, del_message, ded, clear_html, convert_date
 from tgbot.utils.misc.bot_models import FSM, ARS
-from tgbot.utils.misc_functions import upload_text
+from tgbot.utils.misc_functions import upload_text, functions_mail_make
 from tgbot.utils.text_functions import open_profile_admin, refill_open_admin, purchase_open_admin
 
 router = Router(name=__name__)
@@ -19,10 +17,10 @@ router = Router(name=__name__)
 
 # Поиск чеков и профилей
 @router.message(F.text == "🔍 Поиск")
-async def functions_search(message: Message, bot: Bot, state: FSM, arSession: ARS):
+async def functions_find(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
-    await state.set_state("here_search")
+    await state.set_state("here_find")
     await message.answer("<b>🔍 Отправьте айди/логин пользователя или номер чека</b>")
 
 
@@ -31,18 +29,53 @@ async def functions_search(message: Message, bot: Bot, state: FSM, arSession: AR
 async def functions_mail(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await state.clear()
 
-    await state.set_state("here_mail_text")
+    await state.set_state("here_mail_message")
     await message.answer(
-        "<b>📢 Введите текст для рассылки пользователям</b>\n"
-        "❕ Вы можете использовать HTML разметку",
+        "<b>📢 Отправьте пост для рассылки пользователям</b>\n"
+        "❕ Поддерживаются посты с любыми медиафайлами",
     )
 
 
+################################################################################
+################################### РАССЫЛКА ###################################
+# Принятие текста для рассылки
+@router.message(StateFilter("here_mail_message"))
+async def functions_mail_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
+    await state.update_data(here_mail_message=message)
+    await state.set_state("here_mail_confirm")
+
+    get_users = Userx.get_all()
+
+    await message.reply(
+        f"<b>📢 Отправить <code>{len(get_users)}</code> юзерам данный пост?</b>",
+        reply_markup=mail_confirm_finl(),
+    )
+
+
+# Подтверждение отправки рассылки
+@router.callback_query(F.data.startswith("mail_confirm:"), StateFilter("here_mail_confirm"))
+async def functions_mail_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+    get_status = call.data.split(":")[1]
+
+    send_message = (await state.get_data())['here_mail_message']
+    await state.clear()
+
+    if get_status == "Yes":
+        get_users = Userx.get_all()
+
+        await call.message.edit_text(f"<b>📢 Рассылка началась... (0/{len(get_users)})</b>")
+
+        await asyncio.create_task(functions_mail_make(bot, send_message, call))
+    else:
+        await call.message.edit_text("<b>📢 Вы отменили отправку рассылки ✅</b>")
+
+
+################################################################################
 ##################################### ПОИСК ####################################
 # Принятие айди/логина пользователя или чека для поиска
-@router.message(F.text, StateFilter("here_search"))
+@router.message(F.text, StateFilter("here_find"))
 @router.message(F.text.lower().startswith(('.find', 'find')))
-async def functions_search_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
+async def functions_find_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
     find_data = message.text.lower()
 
     if ".find" in find_data or "find" in find_data:
@@ -51,7 +84,7 @@ async def functions_search_get(message: Message, bot: Bot, state: FSM, arSession
                 find_data = message.text.split(" ")[1]
         else:
             return await message.answer(
-                "<b>❌ Вы не указали поисковые данные.</b>\n"
+                "<b>❌ Вы не указали поисковые данные</b>\n"
                 "🔍 Отправьте айди/логин пользователя или номер чека",
             )
 
@@ -84,87 +117,11 @@ async def functions_search_get(message: Message, bot: Bot, state: FSM, arSession
         return await purchase_open_admin(bot, arSession, message.from_user.id, get_purchase)
 
 
-################################### РАССЫЛКА ###################################
-# Принятие текста для рассылки
-@router.message(F.text, StateFilter("here_mail_text"))
-async def functions_mail_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    await state.update_data(here_mail_text="📢 Рассылка.\n" + str(message.text))
-
-    get_users = Userx.get_all()
-
-    try:
-        await (await message.answer(message.text)).delete()
-    except:
-        return await message.answer(
-            "<b>❌ Ошибка синтаксиса HTML.</b>\n"
-            "📢 Введите текст для рассылки пользователям.\n"
-            "❕ Вы можете использовать HTML разметку.",
-        )
-
-    await state.set_state("here_mail_confirm")
-
-    await message.answer(
-        f"<b>📢 Отправить <code>{len(get_users)}</code> юзерам сообщение?</b>\n"
-        f"{message.text}",
-        reply_markup=mail_confirm_finl(),
-        disable_web_page_preview=True
-    )
-
-
-# Подтверждение отправки рассылки
-@router.callback_query(F.data.startswith("confirm_mail:"), StateFilter("here_mail_confirm"))
-async def functions_mail_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    get_action = call.data.split(":")[1]
-
-    get_users = Userx.get_all()
-
-    send_message = (await state.get_data())['here_mail_text']
-    await state.clear()
-
-    if get_action == "yes":
-        await call.message.edit_text(f"<b>📢 Рассылка началась... (0/{len(get_users)})</b>")
-
-        await asyncio.create_task(functions_mail_make(bot, send_message, call))
-    else:
-        await call.message.edit_text("<b>📢 Вы отменили отправку рассылки ✅</b>")
-
-
-# Сама отправка рассылки
-async def functions_mail_make(bot: Bot, text: str, call: CallbackQuery):
-    users_receive, users_block, users_count = 0, 0, 0
-
-    get_users = Userx.get_all()
-    get_time = get_unix()
-
-    for user in get_users:
-        try:
-            await bot.send_message(user.user_id, text)
-            users_receive += 1
-        except:
-            users_block += 1
-
-        users_count += 1
-
-        if users_count % 10 == 0:
-            await call.message.edit_text(f"<b>📢 Рассылка началась... ({users_count}/{len(get_users)})</b>")
-
-        await asyncio.sleep(0.07)
-
-    await call.message.edit_text(
-        ded(f"""
-            <b>📢 Рассылка была завершена за <code>{get_unix() - get_time}сек</code></b>
-            ➖➖➖➖➖➖➖➖➖➖
-            👤 Всего пользователей: <code>{len(get_users)}</code>
-            ✅ Пользователей получило сообщение: <code>{users_receive}</code>
-            ❌ Пользователей не получило сообщение: <code>{users_block}</code>
-        """)
-    )
-
-
+################################################################################
 ############################## УПРАВЛЕНИЕ ПРОФИЛЕМ #############################
 # Обновление профиля пользователя
 @router.callback_query(F.data.startswith("admin_user_refresh:"))
-async def functions_profile_refresh(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+async def functions_user_refresh(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     user_id = int(call.data.split(":")[1])
 
     get_user = Userx.get(user_id=user_id)
@@ -177,12 +134,11 @@ async def functions_profile_refresh(call: CallbackQuery, bot: Bot, state: FSM, a
 
 # Покупки пользователя
 @router.callback_query(F.data.startswith("admin_user_purchases:"))
-async def functions_profile_purchases(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+async def functions_user_purchases(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     user_id = int(call.data.split(":")[1])
 
     get_user = Userx.get(user_id=user_id)
-    get_purchases = Purchasesx.gets(user_id=call.from_user.id)
-    get_purchases = get_purchases[-10:]
+    get_purchases = Purchasesx.gets(user_id=user_id)[-10:]
 
     if len(get_purchases) < 1:
         return await call.answer("❗ У пользователя отсутствуют покупки", True)
@@ -209,28 +165,28 @@ async def functions_profile_purchases(call: CallbackQuery, bot: Bot, state: FSM,
 
 # Выдача баланса пользователю
 @router.callback_query(F.data.startswith("admin_user_balance_add:"))
-async def functions_profile_balance_add(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+async def functions_user_balance_add(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     user_id = int(call.data.split(":")[1])
 
-    await state.update_data(here_profile=user_id)
-    await state.set_state("here_profile_add")
+    await state.update_data(here_user=user_id)
+    await state.set_state("here_user_add")
 
     await call.message.edit_text(
         "<b>💰 Введите сумму для выдачи баланса</b>",
-        reply_markup=profile_search_return_finl(user_id),
+        reply_markup=profile_edit_return_finl(user_id),
     )
 
 
 # Принятие суммы для выдачи баланса пользователю
-@router.message(F.text, StateFilter("here_profile_add"))
-async def functions_profile_balance_add_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    user_id = (await state.get_data())['here_profile']
+@router.message(F.text, StateFilter("here_user_add"))
+async def functions_user_balance_add_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
+    user_id = (await state.get_data())['here_user']
 
     if not is_number(message.text):
         return await message.answer(
-            "<b>❌ Данные были введены неверно.</b>\n"
+            "<b>❌ Данные были введены неверно</b>\n"
             "💰 Введите сумму для выдачи баланса",
-            reply_markup=profile_search_return_finl(user_id),
+            reply_markup=profile_edit_return_finl(user_id),
         )
 
     get_amount = to_number(message.text)
@@ -239,7 +195,7 @@ async def functions_profile_balance_add_get(message: Message, bot: Bot, state: F
         return await message.answer(
             "<b>❌ Сумма выдачи не может быть меньше 1 и больше 1 000 000 000</b>\n"
             "💰 Введите сумму для выдачи баланса",
-            reply_markup=profile_search_return_finl(user_id),
+            reply_markup=profile_edit_return_finl(user_id),
         )
 
     await state.clear()
@@ -261,7 +217,7 @@ async def functions_profile_balance_add_get(message: Message, bot: Bot, state: F
 
     await message.answer(
         f"👤 Пользователь: <a href='tg://user?id={get_user.user_id}'>{get_user.user_name}</a>\n"
-        f"💰 Выдача баланса. <code>{message.text}₽</code> -> <code>{round(get_user.user_give + get_amount, 2)}₽</code>"
+        f"💰 Выдача баланса: <code>{message.text}₽</code> | <code>{get_user.user_balance}</code> -> <code>{round(get_user.user_balance + get_amount, 2)}₽</code>"
     )
 
     get_user = Userx.get(user_id=user_id)
@@ -270,28 +226,28 @@ async def functions_profile_balance_add_get(message: Message, bot: Bot, state: F
 
 # Изменение баланса пользователю
 @router.callback_query(F.data.startswith("admin_user_balance_set:"))
-async def functions_profile_balance_set(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+async def functions_user_balance_set(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     user_id = int(call.data.split(":")[1])
 
-    await state.update_data(here_profile=user_id)
-    await state.set_state("here_profile_set")
+    await state.update_data(here_user=user_id)
+    await state.set_state("here_user_set")
 
     await call.message.edit_text(
         "<b>💰 Введите сумму для изменения баланса</b>",
-        reply_markup=profile_search_return_finl(user_id),
+        reply_markup=profile_edit_return_finl(user_id),
     )
 
 
 # Принятие суммы для изменения баланса пользователя
-@router.message(F.text, StateFilter("here_profile_set"))
-async def functions_profile_balance_set_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    user_id = (await state.get_data())['here_profile']
+@router.message(F.text, StateFilter("here_user_set"))
+async def functions_user_balance_set_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
+    user_id = (await state.get_data())['here_user']
 
     if not is_number(message.text):
         return await message.answer(
-            "<b>❌ Данные были введены неверно.</b>\n"
+            "<b>❌ Данные были введены неверно</b>\n"
             "💰 Введите сумму для изменения баланса",
-            reply_markup=profile_search_return_finl(user_id),
+            reply_markup=profile_edit_return_finl(user_id),
         )
 
     get_amount = to_number(message.text)
@@ -300,7 +256,7 @@ async def functions_profile_balance_set_get(message: Message, bot: Bot, state: F
         return await message.answer(
             "<b>❌ Сумма изменения не может быть больше или меньше (-)1 000 000 000</b>\n"
             "💰 Введите сумму для изменения баланса",
-            reply_markup=profile_search_return_finl(user_id),
+            reply_markup=profile_edit_return_finl(user_id),
         )
 
     await state.clear()
@@ -308,19 +264,19 @@ async def functions_profile_balance_set_get(message: Message, bot: Bot, state: F
     get_user = Userx.get(user_id=user_id)
 
     if get_amount > get_user.user_balance:
-        user_give = get_user.user_give + get_amount
+        user_give = get_amount - get_user.user_give
     else:
-        user_give = get_user.user_give
+        user_give = 0
 
     Userx.update(
         user_id,
         user_balance=get_amount,
-        user_give=user_give,
+        user_give=round(get_user.user_give + user_give, 2),
     )
 
     await message.answer(
         f"👤 Пользователь: <a href='tg://user?id={get_user.user_id}'>{get_user.user_name}</a>\n"
-        f"💰 Выдача баланса. <code>{message.text}₽</code> -> <code>{get_amount}₽</code>"
+        f"💰 Установка баланса: <code>{message.text}₽</code> | <code>{get_user.user_balance}</code> -> <code>{get_amount}₽</code>"
     )
 
     get_user = Userx.get(user_id=user_id)
@@ -329,23 +285,23 @@ async def functions_profile_balance_set_get(message: Message, bot: Bot, state: F
 
 # Отправка сообщения пользователю
 @router.callback_query(F.data.startswith("admin_user_message:"))
-async def functions_profile_user_message(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
+async def functions_user_user_message(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     user_id = int(call.data.split(":")[1])
 
-    await state.update_data(here_profile=user_id)
-    await state.set_state("here_profile_message")
+    await state.update_data(here_user_id=user_id)
+    await state.set_state("here_user_message")
 
     await call.message.edit_text(
         "<b>💌 Введите сообщение для отправки</b>\n"
         "⚠️ Сообщение будет сразу отправлено пользователю.",
-        reply_markup=profile_search_return_finl(user_id),
+        reply_markup=profile_edit_return_finl(user_id),
     )
 
 
 # Принятие сообщения для отправки пользователю
-@router.message(F.text, StateFilter("here_profile_message"))
-async def functions_profile_user_message_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    user_id = (await state.get_data())['here_profile']
+@router.message(F.text, StateFilter("here_user_message"))
+async def functions_user_user_message_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
+    user_id = (await state.get_data())['here_user_id']
     await state.clear()
 
     get_message = "<b>💌 Сообщение от администратора:</b>\n" + f"<code>{clear_html(message.text)}</code>"
@@ -354,14 +310,8 @@ async def functions_profile_user_message_get(message: Message, bot: Bot, state: 
     try:
         await bot.send_message(user_id, get_message)
     except:
-        await message.answer(
-            f"👤 Пользователь: <a href='tg://user?id={get_user.user_id}'>{get_user.user_name}</a>\n"
-            f"❌ Не удалось отправить сообщение. Возможно пользователь заблокировал бота."
-        )
+        await message.reply("<b>❌ Не удалось отправить сообщение</b>")
     else:
-        await message.answer(
-            f"👤 Пользователь: <a href='tg://user?id={get_user.user_id}'>{get_user.user_name}</a>\n"
-            f"💌 Отправлено сообщение: {get_message}"
-        )
+        await message.reply("<b>✅ Сообщение было успешно доставлено</b>")
 
     await open_profile_admin(bot, message.from_user.id, get_user)

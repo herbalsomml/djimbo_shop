@@ -5,34 +5,13 @@ from datetime import datetime
 from typing import Union
 
 from aiogram import Bot
-from aiogram.types import FSInputFile
+from aiogram.types import FSInputFile, CallbackQuery, Message
 
 from tgbot.data.config import get_admins, BOT_VERSION, PATH_DATABASE, get_desc
-from tgbot.database.db_category import Categoryx
-from tgbot.database.db_item import Itemx
-from tgbot.database.db_position import Positionx, PositionModel
-from tgbot.database.db_settings import Settingsx
-from tgbot.database.db_users import Userx
+from tgbot.database import Categoryx, Itemx, Userx, Settingsx, Positionx, PositionModel, CategoryModel
 from tgbot.utils.const_functions import get_unix, get_date, ded, send_admins
 from tgbot.utils.misc.bot_models import ARS
 from tgbot.utils.text_functions import get_statistics
-
-
-# Уведомление и проверка обновления при запуске бота
-async def startup_notify(bot: Bot, arSession: ARS):
-    if len(get_admins()) >= 1:
-        await send_admins(
-            bot,
-            ded(f"""
-                <b>✅ Бот был успешно запущен</b>
-                ➖➖➖➖➖➖➖➖➖➖
-                {get_desc()}
-                ➖➖➖➖➖➖➖➖➖➖
-                <code>❗ Данное сообщение видят только администраторы бота.</code>
-            """),
-        )
-
-        await check_update(bot, arSession)
 
 
 # Автоматическая очистка ежедневной статистики после 00:00:15
@@ -52,6 +31,24 @@ async def update_profit_month():
     Settingsx.update(misc_profit_month=get_unix())
 
 
+# Автонастройка UNIX времени в БД
+async def autosettings_unix():
+    now_day = datetime.now().day
+    now_week = datetime.now().weekday()
+    now_month = datetime.now().month
+    now_year = datetime.now().year
+
+    unix_day = int(datetime.strptime(f"{now_day}.{now_month}.{now_year} 0:0:0", "%d.%m.%Y %H:%M:%S").timestamp())
+    unix_week = unix_day - (now_week * 86400)
+    unix_month = int(datetime.strptime(f"1.{now_month}.{now_year} 0:0:0", "%d.%m.%Y %H:%M:%S").timestamp())
+
+    Settingsx.update(
+        misc_profit_day=unix_day,
+        misc_profit_week=unix_week,
+        misc_profit_month=unix_month,
+    )
+
+
 # Проверка на перенесение БД из старого бота в нового или указание токена нового бота
 async def check_bot_username(bot: Bot):
     get_login = Settingsx.get()
@@ -59,6 +56,23 @@ async def check_bot_username(bot: Bot):
 
     if get_bot.username != get_login.misc_bot:
         Settingsx.update(misc_bot=get_bot.username)
+
+
+# Уведомление и проверка обновления при запуске бота
+async def startup_notify(bot: Bot, arSession: ARS):
+    if len(get_admins()) >= 1:
+        await send_admins(
+            bot,
+            ded(f"""
+                <b>✅ Бот был успешно запущен</b>
+                ➖➖➖➖➖➖➖➖➖➖
+                {get_desc()}
+                ➖➖➖➖➖➖➖➖➖➖
+                <code>❗ Данное сообщение видят только администраторы бота.</code>
+            """),
+        )
+
+        await check_update(bot, arSession)
 
 
 # Автобэкапы БД для админов
@@ -75,7 +89,7 @@ async def autobackup_admin(bot: Bot):
             ...
 
 
-# Автоматическая проверка обновления каждые 24 часа
+# Проверка наличия обновлений бота
 async def check_update(bot: Bot, arSession: ARS):
     session = await arSession.get_session()
 
@@ -119,7 +133,7 @@ async def check_mail(bot: Bot, arSession: ARS):
         print(f"myError check mail: {ex}")
 
 
-# Вставка тэгов юзера в текст
+# Вставка кастомных тэгов юзера в текст
 def insert_tags(user_id: Union[int, str], text: str) -> str:
     get_user = Userx.get(user_id=user_id)
 
@@ -147,7 +161,8 @@ async def upload_text(arSession: ARS, text: str) -> str:
         )
 
         get_link = response.url
-        if "create" in str(get_link): spare_pass = True
+        if "create" in str(get_link):
+            spare_pass = True
     except:
         spare_pass = True
 
@@ -160,21 +175,6 @@ async def upload_text(arSession: ARS, text: str) -> str:
         get_link = json.loads((await response.read()).decode())['url']
 
     return get_link
-
-
-# Загрузка изображения на хостинг телеграфа
-async def upload_photo(arSession: ARS, this_photo) -> str:
-    session = await arSession.get_session()
-
-    send_data = {
-        'name': 'file',
-        'value': this_photo,
-    }
-
-    async with session.post("https://telegra.ph/upload", data=send_data, ssl=False) as response:
-        img_src = await response.json()
-
-    return "http://telegra.ph" + img_src[0]['src']
 
 
 # Наличие товаров
@@ -206,6 +206,26 @@ def get_items_available() -> list[str]:
     return save_items
 
 
+# Получение категорий с товарами
+def get_categories_items() -> list[CategoryModel]:
+    get_settings = Settingsx.get()
+
+    get_categories = Categoryx.get_all()
+
+    save_categories = []
+
+    if get_settings.misc_hide_category == "True":
+        for category in get_categories:
+            get_positions = get_positions_items(category.category_id)
+
+            if len(get_positions) >= 1:
+                save_categories.append(category)
+    else:
+        save_categories = get_categories
+
+    return save_categories
+
+
 # Получение позиций с товарами
 def get_positions_items(category_id: Union[str, int]) -> list[PositionModel]:
     get_settings = Settingsx.get()
@@ -214,7 +234,7 @@ def get_positions_items(category_id: Union[str, int]) -> list[PositionModel]:
 
     save_positions = []
 
-    if get_settings.misc_item_hide == "True":
+    if get_settings.misc_hide_position == "True":
         for position in get_positions:
             get_items = Itemx.gets(position_id=position.position_id)
 
@@ -226,19 +246,37 @@ def get_positions_items(category_id: Union[str, int]) -> list[PositionModel]:
     return save_positions
 
 
-# Автонастройка UNIX времени в БД
-async def autosettings_unix():
-    now_day = datetime.now().day
-    now_week = datetime.now().weekday()
-    now_month = datetime.now().month
-    now_year = datetime.now().year
+# Отправка рассылки
+async def functions_mail_make(bot: Bot, message: Message, call: CallbackQuery):
+    users_receive, users_block, users_count = 0, 0, 0
 
-    unix_day = int(datetime.strptime(f"{now_day}.{now_month}.{now_year} 0:0:0", "%d.%m.%Y %H:%M:%S").timestamp())
-    unix_week = unix_day - (now_week * 86400)
-    unix_month = int(datetime.strptime(f"1.{now_month}.{now_year} 0:0:0", "%d.%m.%Y %H:%M:%S").timestamp())
+    get_users = Userx.get_all()
+    get_time = get_unix()
 
-    Settingsx.update(
-        misc_profit_day=unix_day,
-        misc_profit_week=unix_week,
-        misc_profit_month=unix_month,
+    for user in get_users:
+        try:
+            await bot.copy_message(
+                chat_id=user.user_id,
+                from_chat_id=message.from_user.id,
+                message_id=message.message_id,
+            )
+            users_receive += 1
+        except Exception as ex:
+            users_block += 1
+
+        users_count += 1
+
+        if users_count % 10 == 0:
+            await call.message.edit_text(f"<b>📢 Рассылка началась... ({users_count}/{len(get_users)})</b>")
+
+        await asyncio.sleep(0.07)
+
+    await call.message.edit_text(
+        ded(f"""
+            <b>📢 Рассылка была завершена за <code>{get_unix() - get_time}сек</code></b>
+            ➖➖➖➖➖➖➖➖➖➖
+            👤 Всего пользователей: <code>{len(get_users)}</code>
+            ✅ Пользователей получило сообщение: <code>{users_receive}</code>
+            ❌ Пользователей не получило сообщение: <code>{users_block}</code>
+        """)
     )

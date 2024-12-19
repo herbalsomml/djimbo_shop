@@ -31,7 +31,7 @@ async def main_missed_callback(call: CallbackQuery, bot: Bot, state: FSM, arSess
 async def main_missed_message(message: Message, bot: Bot, state: FSM, arSession: ARS):
     await message.answer(
         ded(f"""
-            ♦️ Неизвестная команда.
+            ♦️ Неизвестная команда
             ♦️ Введите /start
         """),
     )

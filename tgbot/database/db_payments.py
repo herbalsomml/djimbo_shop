@@ -8,26 +8,25 @@ from tgbot.database.db_helper import dict_factory, update_format
 
 
 # Модель таблицы
-class PaymentModel(BaseModel):
-    qiwi_login: str  # Киви номер
-    qiwi_token: str  # Киви токен
+class PaymentsModel(BaseModel):
+    cryptobot_token: str  # Криптобот токен
     yoomoney_token: str  # Юмани токен
-    way_qiwi: str  # Статус работы киви
-    way_yoomoney: str  # Статус работы юмани
+    status_cryptobot: str  # Статус работы криптобота
+    status_yoomoney: str  # Статус работы юмани
 
 
 # Работа с платежными системами
 class Paymentsx:
-    storage_name = "storage_payment"
+    storage_name = "storage_payments"
 
     # Получение записи
     @staticmethod
-    def get() -> PaymentModel:
+    def get() -> PaymentsModel:
         with sqlite3.connect(PATH_DATABASE) as con:
             con.row_factory = dict_factory
             sql = f"SELECT * FROM {Paymentsx.storage_name}"
 
-            return PaymentModel(**con.execute(sql).fetchone())
+            return PaymentsModel(**con.execute(sql).fetchone())
 
     # Редактирование записи
     @staticmethod

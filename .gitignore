@@ -186,7 +186,7 @@ fabric.properties
 /other/
 /tgbot/data/database
 /tgbot/data/database.db
-/tgbot/data/database.*
+/tgbot/data/database.db
 /tgbot/data/xdatabase.db
 /tgbot/data/logs.log
 /settings.ini

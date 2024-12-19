@@ -9,7 +9,7 @@ class AsyncRequestSession:
     def __init__(self) -> None:
         self._session: Optional[aiohttp.ClientSession] = None
 
-    # Вызов сессии
+    # Получить объект сессии
     async def get_session(self) -> aiohttp.ClientSession:
         if self._session is None:
             new_session = aiohttp.ClientSession()

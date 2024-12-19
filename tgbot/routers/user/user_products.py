@@ -5,11 +5,10 @@ from aiogram import Router, Bot, F
 from aiogram.filters import StateFilter
 from aiogram.types import CallbackQuery, Message
 
-from tgbot.database.db_position import Positionx
-from tgbot.database.db_purchases import Purchasesx
-from tgbot.database.db_users import Userx
-from tgbot.keyboards.inline_user_prod import products_confirm_finl, products_return_finl
+from tgbot.database import Positionx, Purchasesx, Userx, Categoryx, Paymentsx
+from tgbot.keyboards.inline_user import refill_method_buy_finl
 from tgbot.keyboards.inline_user_page import *
+from tgbot.keyboards.inline_user_products import products_buy_confirm_finl, products_return_finl
 from tgbot.keyboards.reply_main import menu_frep
 from tgbot.utils.const_functions import split_messages, get_unix, ded, del_message, convert_date, gen_id
 from tgbot.utils.misc.bot_models import FSM, ARS
@@ -47,15 +46,11 @@ async def user_buy_category_open(call: CallbackQuery, bot: Bot, state: FSM, arSe
             reply_markup=prod_item_position_swipe_fp(remover, category_id),
         )
     else:
-        if remover == 0:
-            await call.message.edit_text("<b>🎁 Увы, товары в данное время отсутствуют.</b>")
-            await call.answer("❗ Позиции были изменены или удалены")
-        else:
-            await call.answer(
-                f"❕ Товары в категории {get_category.category_name} отсутствуют",
-                True,
-                cache_time=5,
-            )
+        await call.answer(
+            f"❕ Товары в категории {get_category.category_name} отсутствуют",
+            True,
+            cache_time=5,
+        )
 
 
 # Страницы выбора позиции для покупки товара
@@ -73,7 +68,7 @@ async def user_buy_position_swipe(call: CallbackQuery, bot: Bot, state: FSM, arS
     )
 
 
-# Открытие позиции для покупки
+# Открытие позиции для покупки товара
 @router.callback_query(F.data.startswith("buy_position_open:"))
 async def user_buy_position_open(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     position_id = int(call.data.split(":")[1])
@@ -86,19 +81,29 @@ async def user_buy_position_open(call: CallbackQuery, bot: Bot, state: FSM, arSe
 
 
 #################################### ПОКУПКА ###################################
-# Выбор количества товаров для покупки
+# Покупка товара
 @router.callback_query(F.data.startswith("buy_item_open:"))
 async def user_buy_open(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     position_id = int(call.data.split(":")[1])
     remover = int(call.data.split(":")[2])
 
+    get_payments = Paymentsx.get()
     get_position = Positionx.get(position_id=position_id)
     get_items = Itemx.gets(position_id=position_id)
     get_user = Userx.get(user_id=call.from_user.id)
 
     # Проверка, имеется ли на балансе пользователя достаточно средств
     if int(get_user.user_balance) < int(get_position.position_price):
-        return await call.answer("❗ У вас недостаточно средств. Пополните баланс", True)
+        if get_payments.status_cryptobot == "True" or get_payments.status_yoomoney == "True":
+            await call.message.answer(
+                "<b>❗ На вашем счёте недостаточно средств</b>\n"
+                "💰 Выберите способ пополнения баланса",
+                reply_markup=refill_method_buy_finl(),
+            )
+
+            return await call.answer(cache_time=5)
+        else:
+            return await call.answer("❗ У вас недостаточно средств. Пополните баланс", True)
 
     if len(get_items) < 1:
         return await call.answer("❗ Товаров нет в наличии", True)
@@ -128,7 +133,7 @@ async def user_buy_open(call: CallbackQuery, bot: Bot, state: FSM, arSession: AR
                 ▪️ Количество: <code>1шт</code>
                 ▪️ Сумма к покупке: <code>{get_position.position_price}₽</code>
             """),
-            reply_markup=products_confirm_finl(position_id, get_position.category_id, 1),
+            reply_markup=products_buy_confirm_finl(position_id, get_position.category_id, 1),
         )
     else:
         await state.update_data(here_buy_position_id=position_id)
@@ -177,7 +182,7 @@ async def user_buy_count(message: Message, bot: Bot, state: FSM, arSession: ARS)
     # Если было введено не число
     if not message.text.isdigit():
         return await message.answer(
-            f"<b>❌ Данные были введены неверно.</b>\n" + send_message,
+            f"<b>❌ Данные были введены неверно</b>\n" + send_message,
             reply_markup=products_return_finl(position_id, get_position.category_id),
         )
 
@@ -189,17 +194,17 @@ async def user_buy_count(message: Message, bot: Bot, state: FSM, arSession: ARS)
         await state.clear()
         return await message.answer("<b>🎁 Товар который вы хотели купить, закончился</b>")
 
-    # Если товаров меньше 1 или меньше наличия
+    # Если введено кол-во товаров меньше 1 или меньше кол-ва имеющегося в наличии
     if get_count < 1 or get_count > len(get_items):
         return await message.answer(
-            f"<b>❌ Неверное количество товаров.</b>\n" + send_message,
+            f"<b>❌ Неверное количество товаров</b>\n" + send_message,
             reply_markup=products_return_finl(position_id, get_position.category_id),
         )
 
-    # Если баланс пользователя меньше, чем цена покупки
+    # Если баланс пользователя меньше, чем общая цена покупки
     if int(get_user.user_balance) < amount_pay:
         return await message.answer(
-            f"<b>❌ Недостаточно средств на счете.</b>\n" + send_message,
+            f"<b>❌ Недостаточно средств на счете</b>\n" + send_message,
             reply_markup=products_return_finl(position_id, get_position.category_id),
         )
 
@@ -213,7 +218,7 @@ async def user_buy_count(message: Message, bot: Bot, state: FSM, arSession: ARS)
             ▪️ Количество: <code>{get_count}шт</code>
             ▪️ Сумма к покупке: <code>{amount_pay}₽</code>
         """),
-        reply_markup=products_confirm_finl(position_id, get_position.category_id, get_count),
+        reply_markup=products_buy_confirm_finl(position_id, get_position.category_id, get_count),
     )
 
 
@@ -225,10 +230,10 @@ async def user_buy_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession:
 
     get_items = Itemx.gets(position_id=position_id)
 
-    # Проверка наличия нужного количества товаров
+    # Проверка наличия нужного количества товаров в наличии
     if purchase_count > len(get_items):
         return await call.message.edit_text(
-            "<b>🎁 Товар который вы хотели купить закончился или изменился.</b>",
+            "<b>🎁 Товар который вы хотели купить закончился или изменился</b>",
         )
 
     await call.message.edit_text("<b>🔄 Ждите, товары подготавливаются</b>")
@@ -261,18 +266,18 @@ async def user_buy_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession:
     purchase_data = "\n".join(save_items)
 
     Purchasesx.add(
-        get_user.user_id,
-        get_user.user_balance,
-        round(get_user.user_balance - purchase_price, 2),
-        purchase_receipt,
-        purchase_data,
-        purchase_count,
-        purchase_price,
-        get_position.position_price,
-        get_position.position_id,
-        get_position.position_name,
-        get_category.category_id,
-        get_category.category_name,
+        user_id=get_user.user_id,
+        user_balance_before=get_user.user_balance,
+        user_balance_after=round(get_user.user_balance - purchase_price, 2),
+        purchase_receipt=purchase_receipt,
+        purchase_data=purchase_data,
+        purchase_count=purchase_count,
+        purchase_price=purchase_price,
+        purchase_price_one=get_position.position_price,
+        purchase_position_id=get_position.position_id,
+        purchase_position_name=get_position.position_name,
+        purchase_category_id=get_category.category_id,
+        purchase_category_name=get_category.category_name,
     )
 
     await del_message(call.message)

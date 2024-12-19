@@ -1,12 +1,8 @@
 # - *- coding: utf- 8 - *-
-import math
-
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from tgbot.database.db_category import Categoryx
-from tgbot.database.db_item import Itemx
-from tgbot.database.db_position import Positionx
+from tgbot.database import Categoryx, Positionx, Itemx
 from tgbot.keyboards.inline_helper import build_pagination_finl
 from tgbot.utils.const_functions import ikb
 
@@ -102,7 +98,7 @@ def position_edit_swipe_fp(remover: int, category_id: int) -> InlineKeyboardMark
             keyboard.row(
                 ikb(
                     f"{position.position_name} | {position.position_price}₽ | {len(get_items)} шт",
-                    data=f"position_edit_open:{position.position_id}:{category_id}:{remover}",
+                    data=f"position_edit_open:{category_id}:{position.position_id}:{remover}",
                 )
             )
 
@@ -153,7 +149,7 @@ def item_add_position_swipe_fp(remover: int, category_id: int) -> InlineKeyboard
             keyboard.row(
                 ikb(
                     f"{position.position_name} | {position.position_price}₽ | {len(get_items)} шт",
-                    data=f"item_add_position_open:{position.position_id}:{category_id}",
+                    data=f"item_add_position_open:{category_id}:{position.position_id}",
                 )
             )
 
@@ -184,9 +180,9 @@ def item_delete_swipe_fp(remover: int, position_id: int, category_id: int) -> In
                 )
             )
 
-    buildp_kb = build_pagination_finl(get_items, f"item_delete_swipe:{position_id}:{category_id}", remover)
+    buildp_kb = build_pagination_finl(get_items, f"item_delete_swipe:{category_id}:{position_id}", remover)
     keyboard.row(*buildp_kb)
 
-    keyboard.row(ikb("🔙 Вернуться", data=f"position_edit_open:{position_id}:{category_id}:0"))
+    keyboard.row(ikb("🔙 Вернуться", data=f"position_edit_open:{category_id}:{position_id}:0"))
 
     return keyboard.as_markup()

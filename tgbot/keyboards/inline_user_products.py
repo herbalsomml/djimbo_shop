@@ -19,7 +19,7 @@ def products_open_finl(position_id: int, category_id: int, remover: int) -> Inli
 
 
 # Подтверждение покупки товара
-def products_confirm_finl(position_id: int, category_id: int, get_count: int) -> InlineKeyboardMarkup:
+def products_buy_confirm_finl(position_id: int, category_id: int, get_count: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
 
     keyboard.row(

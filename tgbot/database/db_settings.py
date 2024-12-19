@@ -9,13 +9,16 @@ from tgbot.database.db_helper import dict_factory, update_format
 
 # Модель таблицы
 class SettingsModel(BaseModel):
-    status_work: str  # Статус работы бота (True - бот выключен, False - бот включён)
-    status_refill: str  # Статус пополнений (True - включены, False - выключены)
-    status_buy: str  # Статус покупок (True - включены, False - выключены)
-    misc_faq: str  # Текст для FAQ
-    misc_support: str  # Контакты поддержки
-    misc_bot: str  # Юзернейм запускаемого бота
-    misc_item_hide: str  # Статус отображения позиций без товаров (True - скрывать позиции, False - отображать)
+    status_work: str  # Статус работы бота (True* - бот выключен, False - бот включён)
+    status_refill: str  # Статус пополнений (True - включены, False* - выключены)
+    status_buy: str  # Статус покупок (True - включены, False* - выключены)
+    misc_faq: str  # Текст для FAQ (None*, xxx)
+    misc_support: str  # Контакты поддержки (None*, xxx)
+    misc_bot: str  # Юзернейм запускаемого бота (None*, xxx
+    misc_discord_webhook_url: str  # Ссылка на дискорд вебхук (None*, xxx)
+    misc_discord_webhook_name: str  # Название дискорд вебхука (None*, xxx)
+    misc_hide_category: str  # Статус отображения позиций без товаров (True - скрывать, False* - отображать)
+    misc_hide_position: str  # Статус отображения категорий без товаров (True - скрывать, False* - отображать)
     misc_profit_day: int  # UNIX время за День
     misc_profit_week: int  # UNIX время за Неделю
     misc_profit_month: int  # UNIX время за Месяц

@@ -48,7 +48,7 @@ async def main():
     register_all_routers(dp)  # Регистрация всех роутеров
 
     try:
-        await autosettings_unix()  # Автонастройка UNIX времени в БД
+        await autosettings_unix()
         await set_commands(bot)  # Установка команд
         await check_bot_username(bot)  # Проверка юзернейма бота в БД
         await check_update(bot, arSession)  # Проверка обновлений

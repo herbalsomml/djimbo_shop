@@ -1,13 +1,11 @@
 # - *- coding: utf- 8 - *-
-
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from tgbot.database.db_category import Categoryx
-from tgbot.database.db_item import Itemx
+from tgbot.database import Itemx
 from tgbot.keyboards.inline_helper import build_pagination_finl
 from tgbot.utils.const_functions import ikb
-from tgbot.utils.misc_functions import get_positions_items
+from tgbot.utils.misc_functions import get_positions_items, get_categories_items
 
 
 # fp - flip page
@@ -19,7 +17,7 @@ from tgbot.utils.misc_functions import get_positions_items
 def prod_item_category_swipe_fp(remover: int) -> InlineKeyboardMarkup:
     keyboard = InlineKeyboardBuilder()
 
-    get_categories = Categoryx.get_all()
+    get_categories = get_categories_items()
 
     for count, select in enumerate(range(remover, len(get_categories))):
         if count < 10:

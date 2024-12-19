@@ -10,10 +10,10 @@ BOT_CONFIG.read("settings.ini")
 BOT_TOKEN = BOT_CONFIG['settings']['bot_token'].strip().replace(' ', '')  # Токен бота
 BOT_TIMEZONE = "Europe/Moscow"  # Временная зона бота
 BOT_SCHEDULER = AsyncIOScheduler(timezone=BOT_TIMEZONE)  # Образ шедулера
-BOT_VERSION = 4.0  # Версия бота
+BOT_VERSION = 4.1  # Версия бота
 
 # Пути к файлам
-PATH_DATABASE = "tgbot/data/database.db"  # Путь к БД
+PATH_DATABASE = "tgbot/data/database.db"  # Путь к Базе Данных
 PATH_LOGS = "tgbot/data/logs.log"  # Путь к Логам
 
 
@@ -49,9 +49,9 @@ def get_desc() -> str:
     # УДАЛИШЬ ИЛИ ИЗМЕНИШЬ ССЫЛКИ НА ДОНАТ, КАНАЛ И ТЕМУ БОТА - КАСТРИРУЮ НАХУЙ <3
 
     return ded(f"""
-        <b>♻️ Bot Version: <code>{BOT_VERSION}</code>
-        👑 Bot created by @djimbox
-        🍩 Donate to the author: <a href='https://yoomoney.ru/to/410012580032553'>Click me</a>
-        🤖 Bot channel [NEWS | UPDATES]: <a href='https://t.me/DJIMBO_SHOP'>Click me</a>
-        🔗 Topic Link: <a href='https://lolz.guru/threads/1888814'>Click me</a></b>
+        <b>♻️ Версия бота: <code>{BOT_VERSION}</code>
+        👑 Разработчик бота - @djimbox
+        🍩 Донат разработчику: <a href='https://t.me/send?start=IV8bjPKhYkYJ'>Click me</a>
+        🤖 Канал с новостями и обновлениями: <a href='https://t.me/DJIMBO_SHOP'>Click me</a>
+        🔗 Ссылка на топик с ботом [LOLZ]: <a href='https://lolz.guru/threads/1888814'>Click me</a></b>
     """).strip()

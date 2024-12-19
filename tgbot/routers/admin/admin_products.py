@@ -3,23 +3,21 @@ from aiogram import Router, Bot, F
 from aiogram.filters import StateFilter
 from aiogram.types import CallbackQuery, Message
 
-from tgbot.database.db_category import Categoryx
-from tgbot.database.db_item import Itemx
-from tgbot.database.db_position import Positionx
-from tgbot.database.db_users import Userx
+from tgbot.database import Categoryx, Itemx, Positionx, Userx
 from tgbot.keyboards.inline_admin import close_finl
 from tgbot.keyboards.inline_admin_page import (category_edit_swipe_fp, position_add_swipe_fp,
                                                position_edit_category_swipe_fp, position_edit_swipe_fp,
                                                item_add_position_swipe_fp, item_add_category_swipe_fp,
                                                item_delete_swipe_fp)
-from tgbot.keyboards.inline_admin_prod import (category_edit_delete_finl, position_edit_clear_finl,
-                                               position_edit_delete_finl, position_edit_cancel_finl,
-                                               category_edit_cancel_finl, products_removes_finl,
-                                               products_removes_categories_finl, products_removes_positions_finl,
-                                               products_removes_items_finl, item_add_finish_finl)
+from tgbot.keyboards.inline_admin_products import (category_edit_delete_finl, position_edit_clear_finl,
+                                                   position_edit_delete_finl, position_edit_cancel_finl,
+                                                   category_edit_cancel_finl, products_removes_finl,
+                                                   products_removes_categories_finl, products_removes_positions_finl,
+                                                   products_removes_items_finl, item_add_finish_finl)
+from tgbot.services.api_discord import DiscordAPI
 from tgbot.utils.const_functions import clear_list, is_number, to_number, del_message, ded, get_unix, clear_html
 from tgbot.utils.misc.bot_models import FSM, ARS
-from tgbot.utils.misc_functions import upload_text, upload_photo
+from tgbot.utils.misc_functions import upload_text
 from tgbot.utils.text_functions import category_open_admin, position_open_admin, item_open_admin
 
 router = Router(name=__name__)
@@ -116,7 +114,7 @@ async def prod_removes(message: Message, bot: Bot, state: FSM, arSession: ARS):
 async def prod_category_add_name_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
     if len(message.text) > 50:
         return await message.answer(
-            "<b>❌ Название не может превышать 50 символов.</b>\n"
+            "<b>❌ Название не может превышать 50 символов</b>\n"
             "🗃 Введите название для категории",
         )
 
@@ -180,7 +178,7 @@ async def prod_category_edit_name_get(message: Message, bot: Bot, state: FSM, ar
 
     if len(message.text) > 50:
         return await message.answer(
-            "<b>❌ Название не может превышать 50 символов.</b>\n"
+            "<b>❌ Название не может превышать 50 символов</b>\n"
             "🗃 Введите новое название для категории",
             reply_markup=category_edit_cancel_finl(category_id, remover),
         )
@@ -228,7 +226,7 @@ async def prod_category_edit_delete_confirm(call: CallbackQuery, bot: Bot, state
 
 ################################################################################
 ############################### ДОБАВЛЕНИЕ ПОЗИЦИИ #############################
-# Следующая страница выбора категорий для расположения позиции
+# Cтраницы выбора категорий для расположения позиции
 @router.callback_query(F.data.startswith("position_add_swipe:"))
 async def prod_position_add_swipe(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
     remover = int(call.data.split(":")[1])
@@ -255,7 +253,7 @@ async def prod_position_add_open(call: CallbackQuery, bot: Bot, state: FSM, arSe
 async def prod_position_add_name_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
     if len(message.text) > 50:
         return await message.answer(
-            "<b>❌ Название не может превышать 50 символов.</b>\n"
+            "<b>❌ Название не может превышать 50 символов</b>\n"
             "📁 Введите название для позиции",
         )
 
@@ -270,13 +268,13 @@ async def prod_position_add_name_get(message: Message, bot: Bot, state: FSM, arS
 async def prod_position_add_price_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
     if not is_number(message.text):
         return await message.answer(
-            "<b>❌ Данные были введены неверно.</b>\n"
+            "<b>❌ Данные были введены неверно</b>\n"
             "📁 Введите цену для позиции",
         )
 
     if to_number(message.text) > 10_000_000 or to_number(message.text) < 0:
         return await message.answer(
-            "<b>❌ Цена не может быть меньше 0₽ или больше 10 000 000₽.</b>\n"
+            "<b>❌ Цена не может быть меньше 0₽ или больше 10 000 000₽</b>\n"
             "📁 Введите цену для позиции",
         )
 
@@ -293,9 +291,9 @@ async def prod_position_add_price_get(message: Message, bot: Bot, state: FSM, ar
 # Принятие описания позиции для её создания
 @router.message(F.text, StateFilter('here_position_desc'))
 async def prod_position_add_desc_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    if len(message.text) > 400:
+    if len(message.text) > 1200:
         await message.answer(
-            "<b>❌ Описание не может превышать 400 символов.</b>\n"
+            "<b>❌ Описание не может превышать 1200 символов</b>\n"
             "📁 Введите новое описание для позиции\n"
             "❕ Вы можете использовать HTML разметку\n"
             "❕ Отправьте <code>0</code> чтобы пропустить.",
@@ -310,10 +308,12 @@ async def prod_position_add_desc_get(message: Message, bot: Bot, state: FSM, arS
             position_desc = "None"
     except:
         return await message.answer(
-            "<b>❌ Ошибка синтаксиса HTML.</b>\n"
-            "📁 Введите описание для позиции\n"
-            "❕ Вы можете использовать HTML разметку\n"
-            "❕ Отправьте <code>0</code> чтобы пропустить.",
+            ded(f"""
+                <b>❌ Ошибка синтаксиса HTML</b>
+                📁 Введите описание для позиции
+                ❕ Вы можете использовать HTML разметку
+                ❕ Отправьте <code>0</code> чтобы пропустить
+            """),
         )
 
     await state.update_data(here_position_desc=position_desc)
@@ -325,7 +325,7 @@ async def prod_position_add_desc_get(message: Message, bot: Bot, state: FSM, arS
     )
 
 
-# Принятие изображения позиции для её создания
+# Принятие изображения для позиции при её создании
 @router.message((F.text == "0") | F.photo, StateFilter('here_position_photo'))
 async def prod_position_add_photo_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
     state_data = await state.get_data()
@@ -335,23 +335,35 @@ async def prod_position_add_photo_get(message: Message, bot: Bot, state: FSM, ar
     position_price = to_number(state_data['here_position_price'])
     position_desc = state_data['here_position_desc']
     position_id = get_unix()
+    position_photo = "None"
     await state.clear()
 
     if message.photo is not None:
+        cache_message = await message.answer(
+            "<b>♻️ Подождите, фотография загружается...</b>"
+        )
+
         file_path = (await bot.get_file(message.photo[-1].file_id)).file_path
         photo_path = await bot.download_file(file_path)
 
-        position_photo = await upload_photo(arSession, photo_path)
-    else:
-        position_photo = "None"
+        pay_image_status, pay_image_url = await (DiscordAPI(
+            bot=bot,
+            arSession=arSession,
+            update=message,
+        )).upload_photo(photo_path.read())
+
+        if pay_image_status:
+            position_photo = pay_image_url
+
+        await del_message(cache_message)
 
     Positionx.add(
-        category_id,
-        position_id,
-        position_name,
-        position_price,
-        position_desc,
-        position_photo,
+        category_id=category_id,
+        position_id=position_id,
+        position_name=position_name,
+        position_price=position_price,
+        position_desc=position_desc,
+        position_photo=position_photo,
     )
 
     await position_open_admin(bot, message.from_user.id, position_id)
@@ -404,8 +416,8 @@ async def prod_position_edit_swipe(call: CallbackQuery, bot: Bot, state: FSM, ar
 # Выбор позиции для редактирования
 @router.callback_query(F.data.startswith("position_edit_open:"))
 async def prod_position_edit_open(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await state.clear()
@@ -418,8 +430,8 @@ async def prod_position_edit_open(call: CallbackQuery, bot: Bot, state: FSM, arS
 # Изменение названия позиции
 @router.callback_query(F.data.startswith("position_edit_name:"))
 async def prod_position_edit_name(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await state.update_data(here_position_id=position_id)
@@ -446,7 +458,7 @@ async def prod_position_edit_name_get(message: Message, bot: Bot, state: FSM, ar
 
     if len(message.text) > 50:
         return await message.answer(
-            "<b>❌ Название не может превышать 50 символов.</b>\n"
+            "<b>❌ Название не может превышать 50 символов</b>\n"
             "📁 Введите новое название для позиции",
             reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
         )
@@ -460,8 +472,8 @@ async def prod_position_edit_name_get(message: Message, bot: Bot, state: FSM, ar
 # Изменение цены позиции
 @router.callback_query(F.data.startswith("position_edit_price:"))
 async def prod_position_edit_price(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await state.update_data(here_position_id=position_id)
@@ -487,15 +499,15 @@ async def prod_position_edit_price_get(message: Message, bot: Bot, state: FSM, a
     remover = state_data['here_remover']
 
     if not is_number(message.text):
-        await message.answer(
-            "<b>❌ Данные были введены неверно.</b>\n"
+        return await message.answer(
+            "<b>❌ Данные были введены неверно</b>\n"
             "📁 Введите новую цену для позиции",
             reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
         )
 
     if to_number(message.text) > 10_000_000 or to_number(message.text) < 0:
-        await message.answer(
-            "<b>❌ Цена не может быть меньше 0₽ или больше 10 000 000₽.</b>\n"
+        return await message.answer(
+            "<b>❌ Цена не может быть меньше 0₽ или больше 10 000 000₽</b>\n"
             "📁 Введите новую цену для позиции",
             reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
         )
@@ -509,8 +521,8 @@ async def prod_position_edit_price_get(message: Message, bot: Bot, state: FSM, a
 # Изменение описания позиции
 @router.callback_query(F.data.startswith("position_edit_desc:"))
 async def prod_position_edit_desc(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await state.update_data(here_position_id=position_id)
@@ -521,9 +533,11 @@ async def prod_position_edit_desc(call: CallbackQuery, bot: Bot, state: FSM, arS
     await del_message(call.message)
 
     await call.message.answer(
-        "<b>📁 Введите новое описание для позиции</b>\n"
-        "❕ Вы можете использовать HTML разметку\n"
-        "❕ Отправьте <code>0</code> чтобы пропустить.",
+        ded(f"""
+            <b>📁 Введите новое описание для позиции</b>
+            ❕ Вы можете использовать HTML разметку
+            ❕ Отправьте <code>0</code> чтобы пропустить
+        """),
         reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
     )
 
@@ -537,12 +551,14 @@ async def prod_position_edit_desc_get(message: Message, bot: Bot, state: FSM, ar
     position_id = state_data['here_position_id']
     remover = state_data['here_remover']
 
-    if len(message.text) > 400:
+    if len(message.text) > 1200:
         return await message.answer(
-            "<b>❌ Описание не может превышать 400 символов.</b>\n"
-            "📁 Введите новое описание для позиции\n"
-            "❕ Вы можете использовать HTML разметку\n"
-            "❕ Отправьте <code>0</code> чтобы пропустить.",
+            ded(f"""
+                <b>❌ Описание не может превышать 1200 символов</b>
+                📁 Введите новое описание для позиции
+                ❕ Вы можете использовать HTML разметку
+                ❕ Отправьте <code>0</code> чтобы пропустить
+            """),
             reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
         )
 
@@ -555,10 +571,12 @@ async def prod_position_edit_desc_get(message: Message, bot: Bot, state: FSM, ar
             position_desc = "None"
     except:
         return await message.answer(
-            "<b>❌ Ошибка синтаксиса HTML.</b>\n"
-            "📁 Введите новое описание для позиции\n"
-            "❕ Вы можете использовать HTML разметку\n"
-            "❕ Отправьте <code>0</code> чтобы пропустить.",
+            ded(f"""
+                <b>❌ Ошибка синтаксиса HTML</b>
+                📁 Введите новое описание для позиции
+                ❕ Вы можете использовать HTML разметку
+                ❕ Отправьте <code>0</code> чтобы пропустить
+            """),
             reply_markup=position_edit_cancel_finl(position_id, category_id, remover),
         )
 
@@ -571,8 +589,8 @@ async def prod_position_edit_desc_get(message: Message, bot: Bot, state: FSM, ar
 # Изменение изображения позиции
 @router.callback_query(F.data.startswith("position_edit_photo:"))
 async def prod_position_edit_photo(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await state.update_data(here_position_id=position_id)
@@ -598,14 +616,26 @@ async def prod_position_edit_photo_get(message: Message, bot: Bot, state: FSM, a
     position_id = state_data['here_position_id']
     category_id = state_data['here_category_id']
     remover = state_data['here_remover']
+    position_photo = "None"
 
     if message.photo is not None:
+        cache_message = await message.answer(
+            "<b>♻️ Подождите, фотография загружается...</b>"
+        )
+
         file_path = (await bot.get_file(message.photo[-1].file_id)).file_path
         photo_path = await bot.download_file(file_path)
 
-        position_photo = await upload_photo(arSession, photo_path)
-    else:
-        position_photo = "None"
+        pay_image_status, pay_image_url = await (DiscordAPI(
+            bot=bot,
+            arSession=arSession,
+            update=message,
+        )).upload_photo(photo_path.read())
+
+        if pay_image_status:
+            position_photo = pay_image_url
+
+        await del_message(cache_message)
 
     Positionx.update(position_id, position_photo=position_photo)
     await position_open_admin(bot, message.from_user.id, position_id)
@@ -614,8 +644,8 @@ async def prod_position_edit_photo_get(message: Message, bot: Bot, state: FSM, a
 # Выгрузка товаров
 @router.callback_query(F.data.startswith("position_edit_items:"))
 async def prod_position_edit_items(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     get_position = Positionx.get(position_id=position_id)
@@ -638,8 +668,8 @@ async def prod_position_edit_items(call: CallbackQuery, bot: Bot, state: FSM, ar
 # Удаление позиции
 @router.callback_query(F.data.startswith("position_edit_delete:"))
 async def prod_position_edit_delete(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await del_message(call.message)
@@ -653,8 +683,8 @@ async def prod_position_edit_delete(call: CallbackQuery, bot: Bot, state: FSM, a
 # Подтверждение удаления позиции
 @router.callback_query(F.data.startswith("position_edit_delete_confirm:"))
 async def prod_position_edit_delete_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     Itemx.delete(position_id=position_id)
@@ -674,8 +704,8 @@ async def prod_position_edit_delete_confirm(call: CallbackQuery, bot: Bot, state
 # Очистка позиции
 @router.callback_query(F.data.startswith("position_edit_clear:"))
 async def prod_position_edit_clear(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     await del_message(call.message)
@@ -689,8 +719,8 @@ async def prod_position_edit_clear(call: CallbackQuery, bot: Bot, state: FSM, ar
 # Согласие очистики позиции
 @router.callback_query(F.data.startswith("position_edit_clear_confirm:"))
 async def prod_position_edit_clear_confirm(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     Itemx.delete(position_id=position_id)
@@ -749,8 +779,8 @@ async def prod_item_add_position_swipe(call: CallbackQuery, bot: Bot, state: FSM
 # Выбор позиции для добавления товаров
 @router.callback_query(F.data.startswith("item_add_position_open:"), flags={'rate': 0})
 async def prod_item_add_position_open(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
 
     await state.update_data(here_add_item_category_id=category_id)
     await state.update_data(here_add_item_position_id=position_id)
@@ -761,7 +791,7 @@ async def prod_item_add_position_open(call: CallbackQuery, bot: Bot, state: FSM,
 
     await call.message.answer(
         ded(f"""
-            <b>🎁 Отправляйте данные товаров.</b>
+            <b>🎁 Отправляйте данные товаров</b>
             ❗ Товары разделяются одной пустой строчкой. Пример:
             <code>Данные товара...
 
@@ -797,31 +827,26 @@ async def prod_item_add_finish(call: CallbackQuery, bot: Bot, state: FSM, arSess
 # Принятие данных товара
 @router.message(F.text, StateFilter('here_add_items'), flags={'rate': 0})
 async def prod_item_add_get(message: Message, bot: Bot, state: FSM, arSession: ARS):
-    cache_message = await message.answer("<b>⌛ Ждите, товары добавляются...</b>")
+    cache_message = await message.answer("<b>⌛ Ждите, товары добавляются..</b>")
 
-    count_add = 0
     get_items = clear_list(message.text.split("\n\n"))
 
-    for check_item in get_items:
-        if not check_item.isspace() and check_item != "":
-            count_add += 1
-
-    count_item = (await state.get_data())['here_add_item_count']
+    item_count = (await state.get_data())['here_add_item_count']
     category_id = (await state.get_data())['here_add_item_category_id']
     position_id = (await state.get_data())['here_add_item_position_id']
 
-    await state.update_data(here_add_item_count=count_item + count_add)
+    await state.update_data(here_add_item_count=item_count + len(get_items))
 
     get_user = Userx.get(user_id=message.from_user.id)
     Itemx.add(
-        get_user.user_id,
-        category_id,
-        position_id,
-        get_items,
+        user_id=get_user.user_id,
+        category_id=category_id,
+        position_id=position_id,
+        item_datas=get_items,
     )
 
     await cache_message.edit_text(
-        f"<b>🎁 Товары в кол-ве <u>{count_add}шт</u> были успешно добавлены ✅</b>",
+        f"<b>🎁 Товары в кол-ве <u>{len(get_items)}шт</u> были успешно добавлены ✅</b>",
         reply_markup=item_add_finish_finl(position_id),
     )
 
@@ -831,8 +856,8 @@ async def prod_item_add_get(message: Message, bot: Bot, state: FSM, arSession: A
 # Страницы удаления товаров
 @router.callback_query(F.data.startswith("item_delete_swipe:"))
 async def prod_item_delete_swipe(call: CallbackQuery, bot: Bot, state: FSM, arSession: ARS):
-    position_id = int(call.data.split(":")[1])
-    category_id = int(call.data.split(":")[2])
+    category_id = int(call.data.split(":")[1])
+    position_id = int(call.data.split(":")[2])
     remover = int(call.data.split(":")[3])
 
     get_items = Itemx.gets(position_id=position_id)
@@ -869,9 +894,11 @@ async def prod_item_delete_confirm_open(call: CallbackQuery, bot: Bot, state: FS
     Itemx.delete(item_id=item_id)
 
     await call.message.edit_text(
-        f"<b>✅ Товар был успешно удалён</b>\n"
-        f"➖➖➖➖➖➖➖➖➖➖\n"
-        f"🎁️ Товар: <code>{get_item.item_data}</code>"
+        ded(f"""
+            <b>✅ Товар был успешно удалён</b>
+            ➖➖➖➖➖➖➖➖➖➖
+            🎁️ Товар: <code>{get_item.item_data}</code>
+        """)
     )
 
     if len(get_items) >= 1:
@@ -902,10 +929,12 @@ async def prod_removes_categories(call: CallbackQuery, bot: Bot, state: FSM, arS
     get_items = len(Itemx.get_all())
 
     await call.message.edit_text(
-        f"<b>❌ Вы действительно хотите удалить все категории, позиции и товары?</b>\n"
-        f"🗃 Категорий: <code>{get_categories}шт</code>\n"
-        f"📁 Позиций: <code>{get_positions}шт</code>\n"
-        f"🎁 Товаров: <code>{get_items}шт</code>",
+        ded(f"""
+            <b>❌ Вы действительно хотите удалить все категории, позиции и товары?</b>
+            🗃 Категорий: <code>{get_categories}шт</code>
+            📁 Позиций: <code>{get_positions}шт</code>
+            🎁 Товаров: <code>{get_items}шт</code>
+        """),
         reply_markup=products_removes_categories_finl(),
     )
 
@@ -922,10 +951,12 @@ async def prod_removes_categories_confirm(call: CallbackQuery, bot: Bot, state: 
     Itemx.clear()
 
     await call.message.edit_text(
-        f"<b>✅ Вы успешно удалили все категории</b>\n"
-        f"🗃 Категорий: <code>{get_categories}шт</code>\n"
-        f"📁 Позиций: <code>{get_positions}шт</code>\n"
-        f"🎁 Товаров: <code>{get_items}шт</code>"
+        ded(f"""
+            <b>✅ Вы успешно удалили все категории</b>
+            🗃 Категорий: <code>{get_categories}шт</code>
+            📁 Позиций: <code>{get_positions}шт</code>
+            🎁 Товаров: <code>{get_items}шт</code>
+        """)
     )
 
 
@@ -936,9 +967,11 @@ async def prod_removes_positions(call: CallbackQuery, bot: Bot, state: FSM, arSe
     get_items = len(Itemx.get_all())
 
     await call.message.edit_text(
-        f"<b>❌ Вы действительно хотите удалить все позиции и товары?</b>\n"
-        f"📁 Позиций: <code>{get_positions}шт</code>\n"
-        f"🎁 Товаров: <code>{get_items}шт</code>",
+        ded(f"""
+            <b>❌ Вы действительно хотите удалить все позиции и товары?</b>
+            📁 Позиций: <code>{get_positions}шт</code>
+            🎁 Товаров: <code>{get_items}шт</code>
+        """),
         reply_markup=products_removes_positions_finl(),
     )
 
@@ -953,9 +986,11 @@ async def prod_position_remove(call: CallbackQuery, bot: Bot, state: FSM, arSess
     Itemx.clear()
 
     await call.message.edit_text(
-        f"<b>✅ Вы успешно удалили все позиции</b>\n"
-        f"📁 Позиций: <code>{get_positions}шт</code>\n"
-        f"🎁 Товаров: <code>{get_items}шт</code>"
+        ded(f"""
+            <b>✅ Вы успешно удалили все позиции</b>
+            📁 Позиций: <code>{get_positions}шт</code>
+            🎁 Товаров: <code>{get_items}шт</code>
+        """)
     )
 
 

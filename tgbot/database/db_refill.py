@@ -16,7 +16,7 @@ class RefillModel(BaseModel):
     refill_comment: str  # Комментарий пополнения
     refill_amount: float  # Сумма пополнения
     refill_receipt: Union[str, int]  # Чек пополнения
-    refill_method: str  # Метод пополнения
+    refill_method: str  # Метод пополнения (Yoomoney, Cryptobot)
     refill_unix: int  # Время пополнения в UNIX
 
 

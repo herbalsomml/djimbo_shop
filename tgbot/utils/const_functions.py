@@ -7,7 +7,8 @@ from typing import Union
 
 import pytz
 from aiogram import Bot
-from aiogram.types import Message, InlineKeyboardButton, KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardMarkup
+from aiogram.types import (Message, InlineKeyboardButton, KeyboardButton, InlineKeyboardMarkup,
+                           CopyTextButton)
 
 from tgbot.data.config import BOT_TIMEZONE, get_admins
 from tgbot.utils.misc.bot_logging import bot_logger
@@ -20,11 +21,19 @@ def rkb(text: str) -> KeyboardButton:
 
 
 # Генерация инлайн кнопки
-def ikb(text: str, data: str = None, url: str = None) -> InlineKeyboardButton:
+def ikb(
+        text: str,
+        data: str = None,
+        url: str = None,
+        copy: str = None,
+        login: str = None,
+) -> InlineKeyboardButton:
     if data is not None:
         return InlineKeyboardButton(text=text, callback_data=data)
     elif url is not None:
         return InlineKeyboardButton(text=text, url=url)
+    elif copy is not None:
+        return InlineKeyboardButton(text=text, copy_text=CopyTextButton(text=copy))
 
 
 # Удаление сообщения с обработкой ошибок от телеграма
@@ -35,31 +44,8 @@ async def del_message(message: Message):
         ...
 
 
-# Умная отправка сообщений (автоотправка сообщения с фото или без)
-async def smart_message(
-        bot: Bot,
-        user_id: int,
-        text: str,
-        keyboard: Union[InlineKeyboardMarkup, ReplyKeyboardMarkup] = None,
-        photo: Union[str, None] = None,
-):
-    if photo is not None and photo.title() != "None":
-        await bot.send_photo(
-            chat_id=user_id,
-            photo=photo,
-            caption=text,
-            reply_markup=keyboard,
-        )
-    else:
-        await bot.send_message(
-            chat_id=user_id,
-            text=text,
-            reply_markup=keyboard,
-        )
-
-
 # Отправка сообщения всем админам
-async def send_admins(bot: Bot, text: str, keyboard=None, not_me=0):
+async def send_admins(bot: Bot, text: str, keyboard: InlineKeyboardMarkup = None, not_me: int = 0):
     for admin in get_admins():
         try:
             if str(admin) != str(not_me):
@@ -74,8 +60,8 @@ async def send_admins(bot: Bot, text: str, keyboard=None, not_me=0):
 
 
 # Уведомление об ошибке
-async def send_errors(bot: Bot, error_code: int):
-    text_error = f"myError: {error_code}"
+async def send_errors(bot: Bot, error_code: int, error_text: str = ""):
+    text_error = f"myError {error_code}: {error_text}"
 
     print(text_error)
     bot_logger.warning(text_error)
@@ -91,12 +77,18 @@ def get_date(full: bool = True) -> str:
         return datetime.now(pytz.timezone(BOT_TIMEZONE)).strftime("%d.%m.%Y")
 
 
-# Получение unix времени
-def get_unix(full: bool = False) -> int:
-    if full:  # Получение времени в наносекундах
+# Получение текущего unix времени
+def get_unix(nano: bool = False, full: bool = True) -> int:
+    # Время в наносекундах
+    if nano:
         return time.time_ns()
-    else:  # Получение времени в секундах
-        return int(time.time())
+    else:
+        # Время в секундах
+        if full:
+            return int(time.time())
+        # Время в секундах c 00:00 текущего дня
+        else:
+            return int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
 
 # Удаление отступов у текста
@@ -143,6 +135,19 @@ def clear_list(get_list: list) -> list:
     return get_list
 
 
+# Конвертирование мультисписка в один список
+def convert_list(get_lists: list[list]) -> list:
+    save_lists = []
+
+    for select_list in get_lists:
+        cache_list = clear_list(select_list)
+
+        if len(cache_list) > 0:
+            save_lists += cache_list
+
+    return save_lists
+
+
 # Разбив списка на несколько частей
 def split_messages(get_list: list, count: int) -> list[list]:
     return [get_list[i:i + count] for i in range(0, len(get_list), count)]
@@ -173,7 +178,7 @@ def gen_id(len_id: int = 16) -> int:
 
 
 # Конвертация unix в дату и даты в unix
-def convert_date(from_time, full=True, second=True) -> Union[str, int]:
+def convert_date(from_time: Union[str, int], full: bool = True, second: bool = True) -> Union[str, int]:
     from tgbot.data.config import BOT_TIMEZONE
 
     if "-" in str(from_time):
@@ -235,9 +240,10 @@ def is_bool(value: Union[bool, str, int]) -> bool:
         raise ValueError(f"invalid truth value {value}")
 
 
+################################################################################
 ##################################### ЧИСЛА ####################################
 # Преобразование длинных вещественных чисел в читаемый вид
-def snum(amount: float, remains=0) -> str:
+def snum(amount: float, remains: int = 0) -> str:
     format_str = "{:." + str(remains) + "f}"
     str_amount = format_str.format(float(amount))
 

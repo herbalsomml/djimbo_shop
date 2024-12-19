@@ -64,7 +64,7 @@ def create_dbx():
             print("DB was not found(1/8) | Creating...")
 
         # Создание таблицы с хранением - Настроек
-        if len(con.execute("PRAGMA table_info(storage_settings)").fetchall()) == 10:
+        if len(con.execute("PRAGMA table_info(storage_settings)").fetchall()) == 13:
             print("DB was found(2/8)")
         else:
             con.execute(
@@ -76,7 +76,10 @@ def create_dbx():
                         misc_faq TEXT,
                         misc_support TEXT,
                         misc_bot TEXT,
-                        misc_item_hide TEXT,
+                        misc_discord_webhook_url TEXT,
+                        misc_discord_webhook_name TEXT,
+                        misc_hide_category TEXT,
+                        misc_hide_position TEXT,
                         misc_profit_day INTEGER,
                         misc_profit_week INTEGER,
                         misc_profit_month INTEGER
@@ -93,12 +96,15 @@ def create_dbx():
                         misc_faq,
                         misc_support,
                         misc_bot,
-                        misc_item_hide,
+                        misc_discord_webhook_url,
+                        misc_discord_webhook_name,
+                        misc_hide_category,
+                        misc_hide_position,
                         misc_profit_day,
                         misc_profit_week,
                         misc_profit_month
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """),
                 [
                     'True',
@@ -107,6 +113,9 @@ def create_dbx():
                     'None',
                     'None',
                     'None',
+                    'None',
+                    'None',
+                    'False',
                     'False',
                     get_unix(),
                     get_unix(),
@@ -117,34 +126,31 @@ def create_dbx():
 
         ############################################################
         # Создание таблицы с хранением - Данных платежных систем
-        if len(con.execute("PRAGMA table_info(storage_payment)").fetchall()) == 5:
+        if len(con.execute("PRAGMA table_info(storage_payments)").fetchall()) == 4:
             print("DB was found(3/8)")
         else:
             con.execute(
                 ded(f"""
-                    CREATE TABLE storage_payment(
-                        qiwi_login TEXT,
-                        qiwi_token TEXT,
+                    CREATE TABLE storage_payments(
+                        cryptobot_token TEXT,
                         yoomoney_token TEXT,
-                        way_qiwi TEXT,
-                        way_yoomoney TEXT
+                        status_cryptobot TEXT,
+                        status_yoomoney TEXT
                     )
                 """)
             )
 
             con.execute(
                 ded(f"""
-                    INSERT INTO storage_payment(
-                        qiwi_login,
-                        qiwi_token,
+                    INSERT INTO storage_payments(
+                        cryptobot_token,
                         yoomoney_token,
-                        way_qiwi,
-                        way_yoomoney
+                        status_cryptobot,
+                        status_yoomoney
                     ) 
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?)
                 """),
                 [
-                    'None',
                     'None',
                     'None',
                     'False',

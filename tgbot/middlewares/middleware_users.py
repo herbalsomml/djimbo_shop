@@ -2,7 +2,7 @@
 from aiogram import BaseMiddleware
 from aiogram.types import User
 
-from tgbot.database.db_users import Userx
+from tgbot.database import Userx
 from tgbot.utils.const_functions import clear_html
 
 
